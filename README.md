@@ -1,4 +1,4 @@
-Simple remote shutdown server that listens on port 8000 on endpoint `/<secret>/shutdown`
+Simple remote shutdown server that listens on port 8000 on endpoint `/<secret>/shutdown`, inspired by https://github.com/karpach/remote-shutdown-pc
 
 ## Setup
 First run `./remote_shutdown` this will create a file in `$XDG_CONFIG_DIR/remote_shutdown/secret`
