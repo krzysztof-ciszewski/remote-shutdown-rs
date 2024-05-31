@@ -1,10 +1,9 @@
-use std::process::Command;
 use std::{fs, thread};
+use std::process::Command;
 use std::time::Duration;
 
 use gtk::{Application, ApplicationWindow, Button, gio, glib, Label, Orientation};
 use gtk::glib::clone;
-use gtk::glib::property::PropertyGet;
 use gtk::prelude::*;
 use rocket::{build, Build, get, launch, Rocket, routes};
 
@@ -55,10 +54,9 @@ fn build_popup(app: &Application, delay: u8) {
         .margin_end(12)
         .build();
 
-    let (btn, win) = async_channel::bounded(1);
+    let (abort_sender, abort_receiver) = async_channel::bounded(1);
     button.connect_clicked(move |_| {
-        let sender = btn.clone();
-        sender.send_blocking(true).expect("channel is not open");
+        abort_sender.send_blocking(true).expect("channel is not open");
     });
 
     gtk_box.append(&text);
@@ -69,39 +67,57 @@ fn build_popup(app: &Application, delay: u8) {
         .title(APP_ID)
         .child(&gtk_box)
         .build();
-    let (sender, receiver) = async_channel::bounded(1);
+
+    let (update_label_sender, update_label_receiver) = async_channel::bounded(1);
+    let (close_window_sender, close_window_receiver) = async_channel::bounded(1);
+
     window.connect_show(move |_| {
-        let sender = sender.clone();
-        let win = win.clone();
+        let update_label_sender = update_label_sender.clone();
+        let abort_receiver = abort_receiver.clone();
+        let close_window_sender = close_window_sender.clone();
         gio::spawn_blocking(move || {
-            sender
+            update_label_sender
                 .send_blocking(delay)
                 .expect("The channel needs to be open.");
             let mut secs: u8 = delay;
+            let mut miliseconds: u16 = 0;
             let mut shutdown = true;
             while secs > 0 {
-                let abort = win.try_recv();
+                let abort = abort_receiver.try_recv();
                 if abort.is_ok() {
                     shutdown = false;
-                    break
+                    break;
                 }
 
-                thread::sleep(Duration::from_secs(1));
-                secs -= 1;
-                sender
-                    .send_blocking(secs)
-                    .expect("The channel needs to be open.");
+                thread::sleep(Duration::from_millis(100));
+                miliseconds += 100;
+
+                if miliseconds == 1000 {
+                    miliseconds = 0;
+                    secs -= 1;
+                    update_label_sender
+                        .send_blocking(secs)
+                        .expect("The channel needs to be open.");
+                }
+
             }
             if shutdown {
                 shutdown_system();
-            } else {
-                std::process::exit(0)
             }
+            close_window_sender.send_blocking(true).expect("channel needs to be open");
         });
     });
 
+    glib::spawn_future_local(clone!(@weak window => async move {
+        while let Ok(close_win) = close_window_receiver.recv().await {
+            if close_win {
+                window.close();
+            }
+        }
+    }));
+
     glib::spawn_future_local(clone!(@weak text => async move {
-        while let Ok(secs) = receiver.recv().await {
+        while let Ok(secs) = update_label_receiver.recv().await {
             text.set_label(format!("Shutdown in {}s", secs).as_str());
         }
     }));
