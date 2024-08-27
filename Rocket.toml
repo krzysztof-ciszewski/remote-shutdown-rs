@@ -1,5 +1,5 @@
 [global]
 address = "127.0.0.1"
-port = 2137
+port = 8000
 workers = 1
 keep_alive = 5
