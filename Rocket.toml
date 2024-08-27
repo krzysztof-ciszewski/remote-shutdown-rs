@@ -1,8 +1,5 @@
-[production]
+[global]
 address = "127.0.0.1"
-port = 8000
+port = 2137
 workers = 1
 keep_alive = 5
-read_timeout = 5
-write_timeout = 5
-log = "none"
