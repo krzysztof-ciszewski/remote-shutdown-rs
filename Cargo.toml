@@ -15,7 +15,7 @@ panic = "abort"
 dotenv = "0.15.0"
 dotenv_codegen = "0.15.0"
 rocket = { version =  "0.5.0" }
-gtk = { version = "0.8.2", package = "gtk4" }
 log = "0.4.21"
 async-channel = "2.3.1"
 xdg = "2.5.2"
+slint = "1.6.0"
